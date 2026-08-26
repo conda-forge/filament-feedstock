@@ -2,7 +2,7 @@ schema_version: 1
 
 context:
   name: filament
-  version: "1.71.5"
+  version: "1.75.1"
   python: "3.12"
 
 package:
@@ -11,11 +11,11 @@ package:
 
 source:
   url: https://github.com/google/filament/archive/refs/tags/v${{ version }}.tar.gz
-  sha256: d137b3fae02d138734bd1e16e350ad8fcd179b40bb04ce3831d09c62d7c362b3
+  sha256: 1201bf6e7f266ae68f2a6613bea8b7d8bd5e571c0abc19d4072846f7a265ddac
   patches:
-    - patches/0001-guard-newer-metal-command-buffer-errors.patch
-    - patches/0002-drop-strict-vtable-pointers-with-gcc.patch
+    # Remove when upstream supports selecting these system dependencies.
     - patches/0003-use-system-libpng-zlib.patch
+    # Remove when upstream supports shared-library builds (google/filament#1075).
     - patches/0004-build-selected-shared-libraries.patch
 
 build:
@@ -120,5 +120,6 @@ about:
   repository: https://github.com/google/filament
 
 extra:
+  feedstock-name: filament
   recipe-maintainers:
     - jeongseok-meta
