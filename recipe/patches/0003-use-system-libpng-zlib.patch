@@ -4,10 +4,10 @@ Date: Thu, 14 May 2026 00:37:00 -0700
 Subject: [PATCH] Use selected system libraries
 
 ---
- CMakeLists.txt                | 35 ++++++++++++++++++++++++++++++-----
+ CMakeLists.txt                | 40 +++++++++++++++++++++++++++++++++++-----
  tools/cmgen/CMakeLists.txt    |  2 +-
- tools/filamesh/CMakeLists.txt |  2 +-
- 3 files changed, 32 insertions(+), 7 deletions(-)
+ tools/filamesh/CMakeLists.txt |  5 ++++-
+ 3 files changed, 40 insertions(+), 7 deletions(-)
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 --- a/CMakeLists.txt
@@ -30,14 +30,19 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
  add_subdirectory(${EXTERNAL}/civetweb/tnt)
  add_subdirectory(${EXTERNAL}/imgui/tnt)
  add_subdirectory(${EXTERNAL}/robin-map/tnt)
-@@ -927,6 +936,10 @@ add_subdirectory(${EXTERNAL}/robin-map/tnt)
+@@ -927,6 +936,15 @@ add_subdirectory(${EXTERNAL}/robin-map/tnt)
  add_subdirectory(${EXTERNAL}/smol-v/tnt)
  add_subdirectory(${EXTERNAL}/benchmark/tnt)
 -add_subdirectory(${EXTERNAL}/meshoptimizer/tnt)
-+find_package(meshoptimizer CONFIG REQUIRED)
-+if (NOT TARGET meshoptimizer)
-+    add_library(meshoptimizer INTERFACE IMPORTED)
-+    target_link_libraries(meshoptimizer INTERFACE meshoptimizer::meshoptimizer)
++option(FILAMENT_USE_SYSTEM_MESHOPTIMIZER "Use a system meshoptimizer package" ON)
++if (FILAMENT_USE_SYSTEM_MESHOPTIMIZER)
++    find_package(meshoptimizer CONFIG REQUIRED)
++    if (NOT TARGET meshoptimizer)
++        add_library(meshoptimizer INTERFACE IMPORTED)
++        target_link_libraries(meshoptimizer INTERFACE meshoptimizer::meshoptimizer)
++    endif()
++else()
++    add_subdirectory(${EXTERNAL}/meshoptimizer/tnt)
 +endif()
  add_subdirectory(${EXTERNAL}/mikktspace)
  add_subdirectory(${EXTERNAL}/cgltf/tnt)
@@ -88,12 +93,15 @@ diff --git a/tools/cmgen/CMakeLists.txt b/tools/cmgen/CMakeLists.txt
 diff --git a/tools/filamesh/CMakeLists.txt b/tools/filamesh/CMakeLists.txt
 --- a/tools/filamesh/CMakeLists.txt
 +++ b/tools/filamesh/CMakeLists.txt
-@@ -38,7 +38,7 @@ set_target_properties(${TARGET} PROPERTIES FOLDER Tools)
+@@ -38,7 +38,10 @@ set_target_properties(${TARGET} PROPERTIES FOLDER Tools)
  # =================================================================================================
  # Licenses
  # ==================================================================================================
 -set(MODULE_LICENSES libassimp meshoptimizer)
-+set(MODULE_LICENSES )
++set(MODULE_LICENSES)
++if (NOT FILAMENT_USE_SYSTEM_MESHOPTIMIZER)
++    list(APPEND MODULE_LICENSES meshoptimizer)
++endif()
  set(GENERATION_ROOT ${CMAKE_CURRENT_BINARY_DIR}/generated)
  list_licenses(${GENERATION_ROOT}/licenses/licenses.inc "${MODULE_LICENSES}")
  target_include_directories(${TARGET} PRIVATE ${GENERATION_ROOT})

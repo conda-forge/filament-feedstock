@@ -1,6 +1,7 @@
 import glob
 import json
 import os
+import platform
 import sys
 
 
@@ -23,7 +24,6 @@ if static_archives:
 
 required_shared_libraries = (
     "libbackend",
-    "libbluegl",
     "libbluevk",
     "libfilabridge",
     "libfilaflat",
@@ -32,18 +32,44 @@ required_shared_libraries = (
     "libutils",
 )
 
-for library in required_shared_libraries:
-    matches = sorted(
-        path
-        for path in package_files
-        if path.startswith(f"lib/{library}")
-        and (".so" in os.path.basename(path) or path.endswith(".dylib"))
-    )
-    if not matches:
-        fail(f"filament package does not ship shared {library}")
+if platform.machine().lower() not in ("ppc64", "ppc64le"):
+    required_shared_libraries += ("libbluegl",)
+
+if sys.platform == "win32":
+    for library in required_shared_libraries:
+        base_name = library.removeprefix("lib")
+        for required_path in (
+            f"Library/bin/{base_name}.dll",
+            f"Library/lib/{base_name}.lib",
+        ):
+            if required_path not in package_files:
+                fail(f"filament package does not ship {required_path}")
+    package_root = "Library/"
+    executable_suffix = ".exe"
+else:
+    for library in required_shared_libraries:
+        matches = sorted(
+            path
+            for path in package_files
+            if path.startswith(f"lib/{library}")
+            and (".so" in os.path.basename(path) or path.endswith(".dylib"))
+        )
+        if not matches:
+            fail(f"filament package does not ship shared {library}")
+    package_root = ""
+    executable_suffix = ""
+
+for required_path in (
+    f"{package_root}include/filament/Engine.h",
+    f"{package_root}include/backend/DriverEnums.h",
+    f"{package_root}lib/cmake/Filament/FilamentConfig.cmake",
+    f"{package_root}bin/matc{executable_suffix}",
+):
+    if required_path not in package_files:
+        fail(f"filament package does not ship {required_path}")
 
 for forbidden_path in (
-    "bin/basisu",
+    f"{package_root}bin/basisu{executable_suffix}",
     "lib/libabseil.a",
     "lib/libbasis_transcoder.a",
     "lib/libcivetweb.a",
@@ -57,7 +83,10 @@ for forbidden_path in (
     if forbidden_path in package_files:
         fail(f"filament package ships vendored payload: {forbidden_path}")
 
-for forbidden_prefix in ("include/mikktspace/", "include/tsl/"):
+for forbidden_prefix in (
+    f"{package_root}include/mikktspace/",
+    f"{package_root}include/tsl/",
+):
     matches = sorted(path for path in package_files if path.startswith(forbidden_prefix))
     if matches:
         fail("filament package ships vendored headers: " + ", ".join(matches[:10]))

@@ -19,6 +19,32 @@ cmake_options=(
   -DUSE_STATIC_LIBCXX=OFF
 )
 
+build_targets=(
+  backend
+  bluevk
+  cmgen
+  diffimg
+  filabridge
+  filaflat
+  filament
+  filamesh
+  geometry
+  glslminifier
+  matc
+  matinfo
+  matedit
+  mipgen
+  normal-blending
+  resgen
+  roughness-prefilter
+  shaders
+  smol-v
+  specgen
+  specular-color
+  uberz
+  utils
+)
+
 if [[ "${target_platform}" == linux-* ]]; then
   cmake_options+=(
     -DFILAMENT_ENABLE_EXPERIMENTAL_GCC_SUPPORT=ON
@@ -26,39 +52,30 @@ if [[ "${target_platform}" == linux-* ]]; then
     "-DCMAKE_BUILD_RPATH=\$ORIGIN;\$ORIGIN/../lib"
     "-DCMAKE_INSTALL_RPATH=\$ORIGIN;\$ORIGIN/../lib"
   )
+  if [[ "${target_platform}" == "linux-ppc64le" ]]; then
+    # BlueGL has assembly implementations for x86_64 and AArch64 only.
+    cmake_options+=(
+      -DFILAMENT_SUPPORTS_OPENGL=OFF
+      -DFILAMENT_SUPPORTS_EGL_ON_LINUX=OFF
+      -DFILAMENT_USE_SYSTEM_MESHOPTIMIZER=OFF
+    )
+  else
+    build_targets+=(bluegl)
+  fi
 elif [[ "${target_platform}" == osx-* ]]; then
   cmake_options+=(
     "-DCMAKE_BUILD_RPATH=@loader_path;@loader_path/../lib"
     "-DCMAKE_INSTALL_RPATH=@loader_path;@loader_path/../lib"
   )
+  build_targets+=(bluegl)
+fi
+
+if [[ "${target_platform}" == "linux-aarch64" ]]; then
+  cmake_options+=(-DFILAMENT_USE_SYSTEM_MESHOPTIMIZER=OFF)
 fi
 
 cmake "${cmake_options[@]}"
-cmake --build build --parallel "${CPU_COUNT}" --target \
-  backend \
-  bluegl \
-  bluevk \
-  cmgen \
-  diffimg \
-  filabridge \
-  filaflat \
-  filament \
-  filamesh \
-  geometry \
-  glslminifier \
-  matc \
-  matinfo \
-  matedit \
-  mipgen \
-  normal-blending \
-  resgen \
-  roughness-prefilter \
-  shaders \
-  smol-v \
-  specgen \
-  specular-color \
-  uberz \
-  utils
+cmake --build build --parallel "${CPU_COUNT}" --target "${build_targets[@]}"
 
 install -d "${PREFIX}/bin" "${PREFIX}/docs" "${PREFIX}/include" "${PREFIX}/lib"
 
@@ -94,13 +111,16 @@ done
 filament_shared_libraries=(
   filament/libfilament
   filament/backend/libbackend
-  libs/bluegl/libbluegl
   libs/bluevk/libbluevk
   libs/filabridge/libfilabridge
   libs/filaflat/libfilaflat
   libs/geometry/libgeometry
   libs/utils/libutils
 )
+
+if [[ "${target_platform}" != "linux-ppc64le" ]]; then
+  filament_shared_libraries+=(libs/bluegl/libbluegl)
+fi
 
 if [[ "${target_platform}" == linux-* ]]; then
   shared_library_suffix=so

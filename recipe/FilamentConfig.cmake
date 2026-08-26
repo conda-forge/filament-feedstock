@@ -3,16 +3,24 @@ get_filename_component(PACKAGE_PREFIX_DIR "${CMAKE_CURRENT_LIST_DIR}/../../.." A
 include(CMakeFindDependencyMacro)
 find_dependency(tsl-robin-map CONFIG REQUIRED)
 
-if(APPLE)
-  set(_filament_shared_suffix "dylib")
+if(WIN32)
+  set(_filament_library_prefix "")
+  set(_filament_shared_suffix ".dll")
+  set(_filament_runtime_dir "${PACKAGE_PREFIX_DIR}/bin")
+elseif(APPLE)
+  set(_filament_library_prefix "lib")
+  set(_filament_shared_suffix ".dylib")
+  set(_filament_runtime_dir "${PACKAGE_PREFIX_DIR}/lib")
 else()
-  set(_filament_shared_suffix "so")
+  set(_filament_library_prefix "lib")
+  set(_filament_shared_suffix ".so")
+  set(_filament_runtime_dir "${PACKAGE_PREFIX_DIR}/lib")
 endif()
 
 set(Filament_FOUND TRUE)
 
 function(_filament_import_library target_name library_name)
-  set(_filament_library "${PACKAGE_PREFIX_DIR}/lib/lib${library_name}.${_filament_shared_suffix}")
+  set(_filament_library "${_filament_runtime_dir}/${_filament_library_prefix}${library_name}${_filament_shared_suffix}")
 
   if(NOT EXISTS "${_filament_library}")
     set(Filament_FOUND FALSE PARENT_SCOPE)
@@ -26,10 +34,27 @@ function(_filament_import_library target_name library_name)
       IMPORTED_LOCATION "${_filament_library}"
       INTERFACE_INCLUDE_DIRECTORIES "${PACKAGE_PREFIX_DIR}/include"
     )
+    if(WIN32)
+      set(_filament_implib "${PACKAGE_PREFIX_DIR}/lib/${library_name}.lib")
+      if(NOT EXISTS "${_filament_implib}")
+        set(Filament_FOUND FALSE PARENT_SCOPE)
+        set(Filament_NOT_FOUND_MESSAGE "Missing Filament import library: ${_filament_implib}" PARENT_SCOPE)
+        return()
+      endif()
+      set_target_properties(Filament::${target_name} PROPERTIES
+        IMPORTED_IMPLIB "${_filament_implib}"
+      )
+    endif()
   endif()
 endfunction()
 
-_filament_import_library(bluegl bluegl)
+set(_filament_bluegl_library "${_filament_runtime_dir}/${_filament_library_prefix}bluegl${_filament_shared_suffix}")
+if(EXISTS "${_filament_bluegl_library}")
+  _filament_import_library(bluegl bluegl)
+  set(_filament_backend_dependencies "Filament::bluegl;Filament::bluevk;Filament::utils")
+else()
+  set(_filament_backend_dependencies "Filament::bluevk;Filament::utils")
+endif()
 _filament_import_library(bluevk bluevk)
 _filament_import_library(utils utils)
 _filament_import_library(filabridge filabridge)
@@ -52,7 +77,7 @@ if(Filament_FOUND)
     INTERFACE_LINK_LIBRARIES "Filament::filabridge;Filament::utils"
   )
   set_target_properties(Filament::backend PROPERTIES
-    INTERFACE_LINK_LIBRARIES "Filament::bluegl;Filament::bluevk;Filament::utils"
+    INTERFACE_LINK_LIBRARIES "${_filament_backend_dependencies}"
   )
   set_target_properties(Filament::geometry PROPERTIES
     INTERFACE_LINK_LIBRARIES "Filament::utils"
@@ -65,6 +90,6 @@ endif()
 if(NOT TARGET Filament::matc)
   add_executable(Filament::matc IMPORTED)
   set_target_properties(Filament::matc PROPERTIES
-    IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/bin/matc"
+    IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/bin/matc${CMAKE_EXECUTABLE_SUFFIX}"
   )
 endif()

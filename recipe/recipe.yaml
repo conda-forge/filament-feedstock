@@ -20,7 +20,6 @@ source:
 
 build:
   number: 0
-  skip: win
 
 requirements:
   build:
@@ -32,25 +31,29 @@ requirements:
     - python ${{ python }}.*
   host:
     - assimp
-    - if: linux
+    - if: linux and target_platform != "linux-ppc64le"
       then: libegl-devel
-    - if: linux
+    - if: linux and target_platform != "linux-ppc64le"
       then: libgl-devel
-    - if: linux
+    - if: linux and target_platform != "linux-ppc64le"
       then: libgles-devel
     - libpng
-    - meshoptimizer
+    # Use Filament's bundled copy until conda-forge publishes meshoptimizer
+    # for Windows and Linux Arm/PPC.
+    - if: target_platform in ("linux-64", "osx-64")
+      then: meshoptimizer
     - zlib
     - zstd
   run:
-    - meshoptimizer
+    - if: target_platform in ("linux-64", "osx-64")
+      then: meshoptimizer
     - tsl_robin_map
     - zstd
   run_exports:
     - ${{ pin_subpackage('filament', upper_bound='x.x') }}
   ignore_run_exports:
     from_package:
-      - if: linux
+      - if: linux and target_platform != "linux-ppc64le"
         then: libgles-devel
 
 tests:
@@ -73,15 +76,12 @@ tests:
       - cmgen --help
       - filamesh --help
       - matc -a opengl -p desktop -o bakedColor.filamat bakedColor.mat
-      - test -f "${PREFIX}/include/filament/Engine.h"
-      - test -f "${PREFIX}/include/backend/DriverEnums.h"
-      - test -f "${PREFIX}/lib/libfilament${SHLIB_EXT}"
-      - test -f "${PREFIX}/lib/libbackend${SHLIB_EXT}"
-      - test -f "${PREFIX}/lib/libutils${SHLIB_EXT}"
-      - test -f "${PREFIX}/lib/cmake/Filament/FilamentConfig.cmake"
       - cmake -S test-cmake -B test-cmake-build -G Ninja -DCMAKE_BUILD_TYPE=Release
       - cmake --build test-cmake-build --verbose
-      - ./test-cmake-build/hello_world
+      - if: unix
+        then: ./test-cmake-build/hello_world
+      - if: win
+        then: test-cmake-build/hello_world.exe
 
 about:
   summary: Real-time physically based rendering engine
