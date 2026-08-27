@@ -1,0 +1,108 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: conda-forge <conda-forge@users.noreply.github.com>
+Date: Thu, 27 Aug 2026 08:30:00 -0700
+Subject: [PATCH] Fix Windows shared-library boundaries
+
+Filament's Windows build expects the generated OpenGL and Vulkan loaders to
+remain static. Keep them private to the backend DLL, and explicitly export the
+one public utils data symbol that MSVC cannot auto-export for DLL consumers.
+---
+ libs/bluegl/CMakeLists.txt           |  9 +++++++--
+ libs/bluevk/CMakeLists.txt           |  9 +++++++--
+ libs/utils/CMakeLists.txt            |  3 +++
+ libs/utils/include/utils/Log.h       |  2 +-
+ libs/utils/include/utils/compiler.h  | 12 ++++++++++++
+ 5 files changed, 30 insertions(+), 5 deletions(-)
+
+diff --git a/libs/bluegl/CMakeLists.txt b/libs/bluegl/CMakeLists.txt
+index 456c871..ee81b34 100644
+--- a/libs/bluegl/CMakeLists.txt
++++ b/libs/bluegl/CMakeLists.txt
+@@ -53,8 +53,13 @@ endif()
+ # specify where our headers are
+ include_directories(${PUBLIC_HDR_DIR})
+ 
+-# we're building a library
+-add_library(${TARGET} SHARED ${PUBLIC_HDRS} ${SRCS})
++# Keep the Windows loader static inside its consumers. BlueGL's generated
++# entry points and its OpenGL system dependencies are not a supported DLL API.
++if (WIN32)
++    add_library(${TARGET} STATIC ${PUBLIC_HDRS} ${SRCS})
++else()
++    add_library(${TARGET} SHARED ${PUBLIC_HDRS} ${SRCS})
++endif()
+ 
+ if (APPLE)
+     target_compile_definitions(${TARGET} PRIVATE BLUEGL_SHARED_LIBRARY)
+diff --git a/libs/bluevk/CMakeLists.txt b/libs/bluevk/CMakeLists.txt
+index a257701..5104cf6 100644
+--- a/libs/bluevk/CMakeLists.txt
++++ b/libs/bluevk/CMakeLists.txt
+@@ -21,7 +21,14 @@ endif()
+ 
+ include_directories(${PUBLIC_HDR_DIR})
+ 
+-add_library(${TARGET} SHARED ${PUBLIC_HDRS} ${SRCS})
++# BlueVK exposes Vulkan entry points as global function-pointer variables.
++# Keep it static on Windows, where those variables cannot be consumed across a
++# DLL boundary without changing the generated public header ABI.
++if (WIN32)
++    add_library(${TARGET} STATIC ${PUBLIC_HDRS} ${SRCS})
++else()
++    add_library(${TARGET} SHARED ${PUBLIC_HDRS} ${SRCS})
++endif()
+ 
+ if (NOT WIN32)
+     target_compile_options(${TARGET} PRIVATE -fvisibility=default)
+diff --git a/libs/utils/CMakeLists.txt b/libs/utils/CMakeLists.txt
+index e6de787..e9fc386 100644
+--- a/libs/utils/CMakeLists.txt
++++ b/libs/utils/CMakeLists.txt
+@@ -136,6 +136,9 @@ endif()
+ include_directories(${PUBLIC_HDR_DIR})
+ 
+ add_library(${TARGET} SHARED ${PUBLIC_HDRS} ${SRCS})
++if (WIN32)
++    target_compile_definitions(${TARGET} PRIVATE UTILS_BUILDING_SHARED_LIBRARY)
++endif()
+ if (HAS_SYSTEM_GETOPT)
+     target_compile_definitions(${TARGET} PUBLIC HAS_SYSTEM_GETOPT)
+ else()
+diff --git a/libs/utils/include/utils/Log.h b/libs/utils/include/utils/Log.h
+index 7788642..23ef7aa 100644
+--- a/libs/utils/include/utils/Log.h
++++ b/libs/utils/include/utils/Log.h
+@@ -39,7 +39,7 @@ struct UTILS_PUBLIC Loggers {
+     io::ostream& v;
+ };
+ 
+-extern UTILS_PUBLIC Loggers const slog;
++extern UTILS_SHARED_DATA Loggers const slog;
+ 
+ } // namespace utils
+ 
+diff --git a/libs/utils/include/utils/compiler.h b/libs/utils/include/utils/compiler.h
+index f678e36..19d840d 100644
+--- a/libs/utils/include/utils/compiler.h
++++ b/libs/utils/include/utils/compiler.h
+@@ -36,6 +36,18 @@
+ #    define UTILS_PUBLIC
+ #endif
+ 
++// Data symbols require explicit import/export annotations on Windows even
++// when CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS is enabled.
++#if defined(_WIN32)
++#    if defined(UTILS_BUILDING_SHARED_LIBRARY)
++#        define UTILS_SHARED_DATA __declspec(dllexport)
++#    else
++#        define UTILS_SHARED_DATA __declspec(dllimport)
++#    endif
++#else
++#    define UTILS_SHARED_DATA UTILS_PUBLIC
++#endif
++
+ // UTILS_SHARED_LINKING marks symbols that need default visibility only when
+ // Filament is consumed as a shared/dynamic library. Unlike UTILS_PUBLIC,
+ // which denotes the intentional public API surface, these symbols are
+-- 
+2.51.0

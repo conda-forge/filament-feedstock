@@ -48,14 +48,19 @@ function(_filament_import_library target_name library_name)
   endif()
 endfunction()
 
-set(_filament_bluegl_library "${_filament_runtime_dir}/${_filament_library_prefix}bluegl${_filament_shared_suffix}")
-if(EXISTS "${_filament_bluegl_library}")
-  _filament_import_library(bluegl bluegl)
-  set(_filament_backend_dependencies "Filament::bluegl;Filament::bluevk;Filament::utils")
+if(WIN32)
+  # The generated GL/Vulkan loaders are linked statically into backend.dll.
+  set(_filament_backend_dependencies "Filament::utils")
 else()
-  set(_filament_backend_dependencies "Filament::bluevk;Filament::utils")
+  set(_filament_bluegl_library "${_filament_runtime_dir}/${_filament_library_prefix}bluegl${_filament_shared_suffix}")
+  if(EXISTS "${_filament_bluegl_library}")
+    _filament_import_library(bluegl bluegl)
+    set(_filament_backend_dependencies "Filament::bluegl;Filament::bluevk;Filament::utils")
+  else()
+    set(_filament_backend_dependencies "Filament::bluevk;Filament::utils")
+  endif()
+  _filament_import_library(bluevk bluevk)
 endif()
-_filament_import_library(bluevk bluevk)
 _filament_import_library(utils utils)
 _filament_import_library(filabridge filabridge)
 _filament_import_library(filaflat filaflat)
@@ -67,9 +72,11 @@ if(Filament_FOUND)
   set_target_properties(Filament::utils PROPERTIES
     INTERFACE_LINK_LIBRARIES "tsl::robin_map"
   )
-  set_target_properties(Filament::bluevk PROPERTIES
-    INTERFACE_LINK_LIBRARIES "Filament::utils"
-  )
+  if(TARGET Filament::bluevk)
+    set_target_properties(Filament::bluevk PROPERTIES
+      INTERFACE_LINK_LIBRARIES "Filament::utils"
+    )
+  endif()
   set_target_properties(Filament::filabridge PROPERTIES
     INTERFACE_LINK_LIBRARIES "Filament::utils"
   )

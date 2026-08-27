@@ -24,7 +24,6 @@ if static_archives:
 
 required_shared_libraries = (
     "libbackend",
-    "libbluevk",
     "libfilabridge",
     "libfilaflat",
     "libfilament",
@@ -32,8 +31,10 @@ required_shared_libraries = (
     "libutils",
 )
 
-if platform.machine().lower() not in ("ppc64", "ppc64le"):
-    required_shared_libraries += ("libbluegl",)
+if sys.platform != "win32":
+    required_shared_libraries += ("libbluevk",)
+    if platform.machine().lower() not in ("ppc64", "ppc64le"):
+        required_shared_libraries += ("libbluegl",)
 
 if sys.platform == "win32":
     for library in required_shared_libraries:

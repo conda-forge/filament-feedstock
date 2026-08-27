@@ -1,7 +1,7 @@
 @echo on
 setlocal EnableExtensions
 
-set "PATH=%CD%\build\filament;%CD%\build\filament\backend;%CD%\build\libs\bluegl;%CD%\build\libs\bluevk;%CD%\build\libs\filabridge;%CD%\build\libs\filaflat;%CD%\build\libs\geometry;%CD%\build\libs\utils;%PATH%"
+set "PATH=%CD%\build\filament;%CD%\build\filament\backend;%CD%\build\libs\filabridge;%CD%\build\libs\filaflat;%CD%\build\libs\geometry;%CD%\build\libs\utils;%PATH%"
 
 cmake %CMAKE_ARGS% -G Ninja -S . -B build ^
   -DCMAKE_BUILD_TYPE=Release ^
@@ -37,8 +37,6 @@ for %%T in (cmgen diffimg filamesh glslminifier matc matinfo mipgen normal-blend
 
 call :install_library "build\filament" filament || exit /b 1
 call :install_library "build\filament\backend" backend || exit /b 1
-call :install_library "build\libs\bluegl" bluegl || exit /b 1
-call :install_library "build\libs\bluevk" bluevk || exit /b 1
 call :install_library "build\libs\filabridge" filabridge || exit /b 1
 call :install_library "build\libs\filaflat" filaflat || exit /b 1
 call :install_library "build\libs\geometry" geometry || exit /b 1

@@ -22,6 +22,8 @@ source:
     - patches/0003-use-system-libpng-zlib.patch
     # Remove when upstream supports shared-library builds (google/filament#1075).
     - patches/0004-build-selected-shared-libraries.patch
+    # Remove with the shared-library patch, or when upstream supports Windows DLLs.
+    - patches/0005-fix-windows-shared-library-boundaries.patch
 
 build:
   number: 1
