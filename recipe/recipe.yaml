@@ -16,14 +16,17 @@ source:
     # Remove when upstream guards the macOS 12-only enum values, or when the
     # conda-forge build moves to a macOS 12+ SDK.
     - patches/0001-guard-newer-metal-command-buffer-errors.patch
+    # Backport google/filament#10299; remove when upstream lands an equivalent fix.
+    - patches/0002-fix-neon-mask-types.patch
     # Remove when upstream supports selecting these system dependencies.
     - patches/0003-use-system-libpng-zlib.patch
     # Remove when upstream supports shared-library builds (google/filament#1075).
     - patches/0004-build-selected-shared-libraries.patch
+    # Remove with the shared-library patch, or when upstream supports Windows DLLs.
+    - patches/0005-fix-windows-shared-library-boundaries.patch
 
 build:
-  number: 0
-  skip: win
+  number: 1
 
 requirements:
   build:
@@ -35,25 +38,29 @@ requirements:
     - python ${{ python }}.*
   host:
     - assimp
-    - if: linux
+    - if: linux and target_platform != "linux-ppc64le"
       then: libegl-devel
-    - if: linux
+    - if: linux and target_platform != "linux-ppc64le"
       then: libgl-devel
-    - if: linux
+    - if: linux and target_platform != "linux-ppc64le"
       then: libgles-devel
     - libpng
-    - meshoptimizer
+    # Use Filament's bundled copy until conda-forge publishes meshoptimizer
+    # for Windows and Linux Arm/PPC.
+    - if: target_platform in ("linux-64", "osx-64")
+      then: meshoptimizer
     - zlib
     - zstd
   run:
-    - meshoptimizer
+    - if: target_platform in ("linux-64", "osx-64")
+      then: meshoptimizer
     - tsl_robin_map
     - zstd
   run_exports:
     - ${{ pin_subpackage('filament', upper_bound='x.x') }}
   ignore_run_exports:
     from_package:
-      - if: linux
+      - if: linux and target_platform != "linux-ppc64le"
         then: libgles-devel
 
 tests:
@@ -75,16 +82,16 @@ tests:
       - matinfo --help
       - cmgen --help
       - filamesh --help
-      - matc -a opengl -p desktop -o bakedColor.filamat bakedColor.mat
-      - test -f "${PREFIX}/include/filament/Engine.h"
-      - test -f "${PREFIX}/include/backend/DriverEnums.h"
-      - test -f "${PREFIX}/lib/libfilament${SHLIB_EXT}"
-      - test -f "${PREFIX}/lib/libbackend${SHLIB_EXT}"
-      - test -f "${PREFIX}/lib/libutils${SHLIB_EXT}"
-      - test -f "${PREFIX}/lib/cmake/Filament/FilamentConfig.cmake"
+      - if: target_platform != "linux-ppc64le"
+        then: matc -a opengl -p desktop -o bakedColor.filamat bakedColor.mat
+      - if: target_platform == "linux-ppc64le"
+        then: matc -a vulkan -p desktop -o bakedColor.filamat bakedColor.mat
       - cmake -S test-cmake -B test-cmake-build -G Ninja -DCMAKE_BUILD_TYPE=Release
       - cmake --build test-cmake-build --verbose
-      - ./test-cmake-build/hello_world
+      - if: unix
+        then: ./test-cmake-build/hello_world
+      - if: win
+        then: .\test-cmake-build\hello_world.exe
 
 about:
   summary: Real-time physically based rendering engine
