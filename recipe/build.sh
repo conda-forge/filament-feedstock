@@ -57,6 +57,8 @@ if [[ "${target_platform}" == linux-* ]]; then
     cmake_options+=(
       -DFILAMENT_SUPPORTS_OPENGL=OFF
       -DFILAMENT_SUPPORTS_EGL_ON_LINUX=OFF
+      -DFILAMENT_SUPPORTS_XCB=OFF
+      -DFILAMENT_SUPPORTS_XLIB=OFF
       -DFILAMENT_USE_SYSTEM_MESHOPTIMIZER=OFF
     )
   else
