@@ -91,7 +91,7 @@ tests:
       - if: unix
         then: ./test-cmake-build/hello_world
       - if: win
-        then: test-cmake-build/hello_world.exe
+        then: .\test-cmake-build\hello_world.exe
 
 about:
   summary: Real-time physically based rendering engine
