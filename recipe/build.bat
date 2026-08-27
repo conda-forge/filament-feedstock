@@ -5,6 +5,8 @@ set "PATH=%CD%\build\filament;%CD%\build\filament\backend;%CD%\build\libs\filabr
 
 cmake %CMAKE_ARGS% -G Ninja -S . -B build ^
   -DCMAKE_BUILD_TYPE=Release ^
+  -DCMAKE_CXX_STANDARD=20 ^
+  -DCMAKE_CXX_STANDARD_REQUIRED=ON ^
   -DCMAKE_INSTALL_PREFIX="%LIBRARY_PREFIX%" ^
   -DDIST_DIR=. ^
   -DFILAMENT_BUILD_TESTING=OFF ^
