@@ -1,6 +1,8 @@
 @echo on
 setlocal EnableExtensions
 
+set "PATH=%CD%\build\filament;%CD%\build\filament\backend;%CD%\build\libs\bluegl;%CD%\build\libs\bluevk;%CD%\build\libs\filabridge;%CD%\build\libs\filaflat;%CD%\build\libs\geometry;%CD%\build\libs\utils;%PATH%"
+
 cmake %CMAKE_ARGS% -G Ninja -S . -B build ^
   -DCMAKE_BUILD_TYPE=Release ^
   -DCMAKE_INSTALL_PREFIX="%LIBRARY_PREFIX%" ^
