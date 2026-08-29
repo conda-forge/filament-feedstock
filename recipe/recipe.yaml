@@ -2,7 +2,7 @@ schema_version: 1
 
 context:
   name: filament
-  version: "1.75.1"
+  version: "1.76.0"
   python: "3.12"
 
 package:
@@ -11,7 +11,7 @@ package:
 
 source:
   url: https://github.com/google/filament/archive/refs/tags/v${{ version }}.tar.gz
-  sha256: 1201bf6e7f266ae68f2a6613bea8b7d8bd5e571c0abc19d4072846f7a265ddac
+  sha256: 8cee7aa7aee72d2a62b5a1b3871d9f6d9e276e982fc4917960ac1da5c5b425dc
   patches:
     # Remove when upstream guards the macOS 12-only enum values, or when the
     # conda-forge build moves to a macOS 12+ SDK.
@@ -26,7 +26,7 @@ source:
     - patches/0005-fix-windows-shared-library-boundaries.patch
 
 build:
-  number: 1
+  number: 0
 
 requirements:
   build:
