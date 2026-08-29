@@ -74,7 +74,7 @@ elif [[ "${target_platform}" == osx-* ]]; then
   build_targets+=(bluegl)
 fi
 
-if [[ "${target_platform}" == "linux-aarch64" ]]; then
+if [[ "${target_platform}" == "linux-aarch64" || "${target_platform}" == "osx-arm64" ]]; then
   cmake_options+=(-DFILAMENT_USE_SYSTEM_MESHOPTIMIZER=OFF)
 fi
 

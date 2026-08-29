@@ -26,7 +26,7 @@ source:
     - patches/0005-fix-windows-shared-library-boundaries.patch
 
 build:
-  number: 0
+  number: 1
 
 requirements:
   build:
@@ -46,7 +46,7 @@ requirements:
       then: libgles-devel
     - libpng
     # Use Filament's bundled copy until conda-forge publishes meshoptimizer
-    # for Windows and Linux Arm/PPC.
+    # for Windows, Apple Silicon, and Linux Arm/PPC.
     - if: target_platform in ("linux-64", "osx-64")
       then: meshoptimizer
     - zlib
