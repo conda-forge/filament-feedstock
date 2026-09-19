@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(Filament CONFIG REQUIRED)
 
 option(FILAGUI_TEST_DOCKING "Test with the Dear ImGui docking branch" OFF)
+set(FILAMENT_TEST_WINDOW_SYSTEM "none" CACHE STRING "Window system used by the runtime test")
 
 if(FILAGUI_TEST_DOCKING)
   set(imgui_source_dir "${CMAKE_CURRENT_LIST_DIR}/../imgui-docking")
@@ -31,10 +32,18 @@ else()
   target_link_libraries(hello_world PRIVATE imgui::imgui)
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64)$")
+if(FILAMENT_TEST_WINDOW_SYSTEM STREQUAL "x11")
   find_package(X11 REQUIRED)
   target_compile_definitions(hello_world PRIVATE FILAMENT_TEST_X11=1)
   target_link_libraries(hello_world PRIVATE X11::X11)
+elseif(FILAMENT_TEST_WINDOW_SYSTEM STREQUAL "wayland")
+  find_package(glfw3 CONFIG REQUIRED)
+  target_compile_definitions(hello_world PRIVATE
+    FILAMENT_TEST_WAYLAND=1
+    GLFW_EXPOSE_NATIVE_WAYLAND=1
+    GLFW_INCLUDE_NONE=1
+  )
+  target_link_libraries(hello_world PRIVATE glfw)
 endif()
 
 set(material_output "${CMAKE_CURRENT_BINARY_DIR}/bakedColor.filamat")
