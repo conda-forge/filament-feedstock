@@ -18,6 +18,10 @@ downstream consumers.
 The image and ktxreader libraries are built shared, so Filament's vendored
 Basis Universal transcoder is linked into libktxreader rather than shipped
 as a static archive.
+The optional filament-bluegl-static output carries the static BlueGL
+loader on Windows, where it is not part of the shared library surface.
+It ships no headers: BlueGL's own headers bundle GL/glcorearb.h, which
+would collide with other OpenGL header packages.
 The optional filament-filagui-static output is built against Dear ImGui
 1.92.9 docking headers but does not package or link an ImGui
 implementation. Consumers must link exactly one matching implementation:
@@ -78,6 +82,7 @@ Current release info
 | Name | Downloads | Version | Platforms |
 | --- | --- | --- | --- |
 | [![Conda Recipe](https://img.shields.io/badge/recipe-filament-green.svg)](https://anaconda.org/conda-forge/filament) | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/filament.svg)](https://anaconda.org/conda-forge/filament) | [![Conda Version](https://img.shields.io/conda/vn/conda-forge/filament.svg)](https://anaconda.org/conda-forge/filament) | [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/filament.svg)](https://anaconda.org/conda-forge/filament) |
+| [![Conda Recipe](https://img.shields.io/badge/recipe-filament--bluegl--static-green.svg)](https://anaconda.org/conda-forge/filament-bluegl-static) | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/filament-bluegl-static.svg)](https://anaconda.org/conda-forge/filament-bluegl-static) | [![Conda Version](https://img.shields.io/conda/vn/conda-forge/filament-bluegl-static.svg)](https://anaconda.org/conda-forge/filament-bluegl-static) | [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/filament-bluegl-static.svg)](https://anaconda.org/conda-forge/filament-bluegl-static) |
 | [![Conda Recipe](https://img.shields.io/badge/recipe-filament--filagui--static-green.svg)](https://anaconda.org/conda-forge/filament-filagui-static) | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/filament-filagui-static.svg)](https://anaconda.org/conda-forge/filament-filagui-static) | [![Conda Version](https://img.shields.io/conda/vn/conda-forge/filament-filagui-static.svg)](https://anaconda.org/conda-forge/filament-filagui-static) | [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/filament-filagui-static.svg)](https://anaconda.org/conda-forge/filament-filagui-static) |
 
 Installing filament
@@ -97,7 +102,7 @@ How to use
 <summary>With conda</summary>
 
 ```
-conda install filament filament-filagui-static
+conda install filament filament-bluegl-static filament-filagui-static
 ```
 
 </details>
@@ -106,7 +111,7 @@ conda install filament filament-filagui-static
 <summary>With mamba</summary>
 
 ```
-mamba install filament filament-filagui-static
+mamba install filament filament-bluegl-static filament-filagui-static
 ```
 
 </details>
@@ -116,9 +121,9 @@ mamba install filament filament-filagui-static
 
 ```
 # for adding to your local project
-pixi add filament filament-filagui-static
+pixi add filament filament-bluegl-static filament-filagui-static
 # for installing globally
-pixi global install filament filament-filagui-static
+pixi global install filament filament-bluegl-static filament-filagui-static
 ```
 
 </details>
