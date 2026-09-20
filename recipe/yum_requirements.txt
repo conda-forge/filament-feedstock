@@ -1,1 +1,2 @@
+mesa-vulkan-drivers
 xorg-x11-server-Xvfb

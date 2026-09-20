@@ -10,6 +10,8 @@ channel_targets:
 - conda-forge main
 cxx_compiler:
 - vs2022
+filament_window_system:
+- native
 libpng:
 - '1.6'
 target_platform:

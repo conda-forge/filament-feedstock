@@ -19,6 +19,9 @@ with open(metadata_paths[0], encoding="utf-8") as metadata_file:
     metadata = json.load(metadata_file)
 
 package_files = metadata["files"]
+is_wayland_build = sys.platform.startswith("linux") and metadata["build"].startswith(
+    "wayland_"
+)
 
 for dependency_name in ("imgui", "libvulkan-headers"):
     if any(dependency.split()[0] == dependency_name for dependency in metadata["depends"]):
@@ -42,7 +45,7 @@ required_shared_libraries = (
 
 if sys.platform != "win32":
     required_shared_libraries += ("libbluevk",)
-    if platform.machine().lower() not in ("ppc64", "ppc64le"):
+    if not is_wayland_build and platform.machine().lower() not in ("ppc64", "ppc64le"):
         required_shared_libraries += ("libbluegl",)
 
 if sys.platform == "win32":
@@ -68,6 +71,11 @@ else:
             fail(f"filament package does not ship shared {library}")
     package_root = ""
     executable_suffix = ""
+
+if is_wayland_build and any(
+    path.startswith("lib/libbluegl") for path in package_files
+):
+    fail("Wayland-only filament package ships libbluegl")
 
 for required_path in (
     f"{package_root}include/bluevk/BlueVK.h",
