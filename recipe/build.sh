@@ -22,6 +22,12 @@ cmake_options=(
   -DUSE_STATIC_LIBCXX=OFF
 )
 
+if [[ "${CONDA_BUILD_CROSS_COMPILATION:-0}" == "1" ]]; then
+  # Filament assumes cross builds need prebuilt host tools, but conda-forge can run target tools via QEMU.
+  touch ImportExecutables-Release.cmake
+  cmake_options+=("-DCMAKE_CROSSCOMPILING_EMULATOR=${CROSSCOMPILING_EMULATOR:?}")
+fi
+
 build_targets=(
   backend
   bluevk
