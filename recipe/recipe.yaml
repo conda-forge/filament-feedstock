@@ -249,7 +249,7 @@ outputs:
                 - xorg-libx11
                 - xorg-xorgproto
         script:
-          - cmake -S test-cmake -B test-cmake-mainline-build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          - cmake -S test-cmake -B test-cmake-mainline-build -G Ninja -DCMAKE_BUILD_TYPE=Release -DFILAGUI_TEST_X11=${{ "ON" if target_platform == "linux-64" else "OFF" }}
           - cmake --build test-cmake-mainline-build --verbose
           - if: target_platform == "linux-64"
             then: VK_DRIVER_FILES="$PREFIX/share/vulkan/icd.d/lvp_icd.x86_64.json" xvfb-run -a -s "-screen 0 640x480x24 -ac -extension GLX +extension RANDR" ./test-cmake-mainline-build/hello_world
@@ -278,7 +278,7 @@ outputs:
                 - xorg-libx11
                 - xorg-xorgproto
         script:
-          - cmake -S test-cmake -B test-cmake-docking-build -G Ninja -DCMAKE_BUILD_TYPE=Release -DFILAGUI_TEST_DOCKING=ON
+          - cmake -S test-cmake -B test-cmake-docking-build -G Ninja -DCMAKE_BUILD_TYPE=Release -DFILAGUI_TEST_DOCKING=ON -DFILAGUI_TEST_X11=${{ "ON" if target_platform == "linux-64" else "OFF" }}
           - cmake --build test-cmake-docking-build --verbose
           - if: target_platform == "linux-64"
             then: VK_DRIVER_FILES="$PREFIX/share/vulkan/icd.d/lvp_icd.x86_64.json" xvfb-run -a -s "-screen 0 640x480x24 -ac -extension GLX +extension RANDR" ./test-cmake-docking-build/hello_world
