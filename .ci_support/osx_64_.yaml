@@ -20,6 +20,8 @@ cxx_compiler:
 - clangxx
 cxx_compiler_version:
 - '21'
+filament_window_system:
+- native
 libpng:
 - '1.6'
 macos_machine:

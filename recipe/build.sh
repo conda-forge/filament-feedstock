@@ -64,17 +64,34 @@ if [[ "${target_platform}" == linux-* ]]; then
     "-DCMAKE_BUILD_RPATH=\$ORIGIN;\$ORIGIN/../lib"
     "-DCMAKE_INSTALL_RPATH=\$ORIGIN;\$ORIGIN/../lib"
   )
-  if [[ "${target_platform}" == "linux-ppc64le" ]]; then
+  if [[ "${filament_window_system}" == "wayland" ]]; then
+    cmake_options+=(
+      -DFILAMENT_SUPPORTS_OPENGL=OFF
+      -DFILAMENT_SUPPORTS_WAYLAND=ON
+      -DFILAMENT_SUPPORTS_XCB=OFF
+      -DFILAMENT_SUPPORTS_XLIB=OFF
+    )
+  elif [[ "${filament_window_system}" == "headless" ]]; then
     # BlueGL has assembly implementations for x86_64 and AArch64 only.
     cmake_options+=(
       -DFILAMENT_SUPPORTS_OPENGL=OFF
       -DFILAMENT_SUPPORTS_EGL_ON_LINUX=OFF
+      -DFILAMENT_SUPPORTS_WAYLAND=OFF
       -DFILAMENT_SUPPORTS_XCB=OFF
       -DFILAMENT_SUPPORTS_XLIB=OFF
       -DFILAMENT_USE_SYSTEM_MESHOPTIMIZER=OFF
     )
-  else
+  elif [[ "${filament_window_system}" == "x11" ]]; then
+    cmake_options+=(
+      -DFILAMENT_SUPPORTS_OPENGL=ON
+      -DFILAMENT_SUPPORTS_WAYLAND=OFF
+      -DFILAMENT_SUPPORTS_XCB=ON
+      -DFILAMENT_SUPPORTS_XLIB=ON
+    )
     build_targets+=(bluegl)
+  else
+    echo "unsupported Linux window system: ${filament_window_system}" >&2
+    exit 1
   fi
 elif [[ "${target_platform}" == osx-* ]]; then
   cmake_options+=(
@@ -140,7 +157,7 @@ filament_shared_libraries=(
   libs/utils/libutils
 )
 
-if [[ "${target_platform}" != "linux-ppc64le" ]]; then
+if [[ "${target_platform}" == osx-* || "${filament_window_system}" == "x11" ]]; then
   filament_shared_libraries+=(libs/bluegl/libbluegl)
 fi
 

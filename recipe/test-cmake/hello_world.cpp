@@ -24,6 +24,16 @@
 
 #ifdef FILAMENT_TEST_X11
 #include <X11/Xlib.h>
+#elif defined(FILAMENT_TEST_WAYLAND)
+#include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
+
+struct WaylandWindow {
+    wl_display* display;
+    wl_surface* surface;
+    uint32_t width;
+    uint32_t height;
+};
 #endif
 
 int main() {
@@ -72,6 +82,30 @@ int main() {
     XMapWindow(display, window);
     XSync(display, False);
     constexpr Engine::Backend backend = Engine::Backend::VULKAN;
+#elif defined(FILAMENT_TEST_WAYLAND)
+    glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);
+    glfwInitHint(GLFW_WAYLAND_LIBDECOR, GLFW_WAYLAND_DISABLE_LIBDECOR);
+    if (!glfwInit()) {
+        return 1;
+    }
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    GLFWwindow* window = glfwCreateWindow(width, height, "filament conda test", nullptr, nullptr);
+    if (window == nullptr) {
+        glfwTerminate();
+        return 1;
+    }
+    WaylandWindow nativeWindow = {
+            glfwGetWaylandDisplay(),
+            glfwGetWaylandWindow(window),
+            width,
+            height,
+    };
+    if (nativeWindow.display == nullptr || nativeWindow.surface == nullptr) {
+        glfwDestroyWindow(window);
+        glfwTerminate();
+        return 1;
+    }
+    constexpr Engine::Backend backend = Engine::Backend::VULKAN;
 #else
     constexpr Engine::Backend backend = Engine::Backend::NOOP;
 #endif
@@ -81,6 +115,9 @@ int main() {
 #ifdef FILAMENT_TEST_X11
         XDestroyWindow(display, window);
         XCloseDisplay(display);
+#elif defined(FILAMENT_TEST_WAYLAND)
+        glfwDestroyWindow(window);
+        glfwTerminate();
 #endif
         return 1;
     }
@@ -88,6 +125,8 @@ int main() {
 #ifdef FILAMENT_TEST_X11
     SwapChain* swapChain = engine->createSwapChain(
             reinterpret_cast<void*>(static_cast<std::uintptr_t>(window)));
+#elif defined(FILAMENT_TEST_WAYLAND)
+    SwapChain* swapChain = engine->createSwapChain(&nativeWindow);
 #else
     SwapChain* swapChain = engine->createSwapChain(width, height);
 #endif
@@ -119,7 +158,7 @@ int main() {
     View* guiView = engine->createView();
     guiView->setViewport({0, 0, width, height});
     bool renderedGuiFrame = false;
-#ifdef FILAMENT_TEST_X11
+#if defined(FILAMENT_TEST_X11) || defined(FILAMENT_TEST_WAYLAND)
     std::array<uint8_t, width * height * 4> guiPixels{};
 #endif
     {
@@ -143,7 +182,7 @@ int main() {
         });
         if (renderer->beginFrame(swapChain)) {
             renderer->render(guiView);
-#ifdef FILAMENT_TEST_X11
+#if defined(FILAMENT_TEST_X11) || defined(FILAMENT_TEST_WAYLAND)
             renderer->readPixels(0, 0, width, height,
                     backend::PixelBufferDescriptor(guiPixels.data(), guiPixels.size(),
                             backend::PixelDataFormat::RGBA, backend::PixelDataType::UBYTE));
@@ -154,7 +193,7 @@ int main() {
         engine->flushAndWait();
     }
 
-#ifdef FILAMENT_TEST_X11
+#if defined(FILAMENT_TEST_X11) || defined(FILAMENT_TEST_WAYLAND)
     bool renderedGuiOutput = false;
     for (size_t pixel = 0; pixel < guiPixels.size(); pixel += 4) {
         if (guiPixels[pixel] > guiPixels[pixel + 1] + 16 &&
@@ -180,6 +219,9 @@ int main() {
 #ifdef FILAMENT_TEST_X11
     XDestroyWindow(display, window);
     XCloseDisplay(display);
+#elif defined(FILAMENT_TEST_WAYLAND)
+    glfwDestroyWindow(window);
+    glfwTerminate();
 #endif
 
     return renderedFrame && renderedGuiFrame && renderedGuiOutput ? 0 : 2;
