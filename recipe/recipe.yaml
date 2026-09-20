@@ -3,7 +3,7 @@ schema_version: 1
 context:
   name: filament
   version: "1.77.0"
-  build_number: 3
+  build_number: 4
   imgui_version: "1.92.9"
   python: "3.12"
 
@@ -116,7 +116,6 @@ outputs:
         - Library/include/math
         - Library/include/utils
         - Library/lib/backend.lib
-        - Library/lib/bluegl.lib
         - Library/lib/bluevk.lib
         - Library/lib/cmake/Filament
         - Library/lib/filabridge.lib
@@ -190,6 +189,25 @@ outputs:
           - if: target_platform != "linux-ppc64le"
             then: matc -a opengl -p desktop -o bakedColor.filamat bakedColor.mat
             else: matc -a vulkan -p desktop -o bakedColor.filamat bakedColor.mat
+  - package:
+      name: filament-bluegl-static
+    build:
+      # BlueGL is a shared library on every other platform and is already in
+      # the main package. Windows keeps it static (see patch 0005), so there
+      # it has to be shipped separately for consumers that call into it.
+      skip: not win
+      files:
+        - Library/lib/bluegl.lib
+    inherit:
+      from: filament-build
+      run_exports: false
+    requirements:
+      run:
+        - ${{ pin_subpackage('filament', exact=True) }}
+    tests:
+      - package_contents:
+          files:
+            - Library/lib/bluegl.lib
   - package:
       name: filament-filagui-static
     inherit:
@@ -316,6 +334,10 @@ about:
     The image and ktxreader libraries are built shared, so Filament's vendored
     Basis Universal transcoder is linked into libktxreader rather than shipped
     as a static archive.
+    The optional filament-bluegl-static output carries the static BlueGL
+    loader on Windows, where it is not part of the shared library surface.
+    It ships no headers: BlueGL's own headers bundle GL/glcorearb.h, which
+    would collide with other OpenGL header packages.
     The optional filament-filagui-static output is built against Dear ImGui
     ${{ imgui_version }} docking headers but does not package or link an ImGui
     implementation. Consumers must link exactly one matching implementation:
