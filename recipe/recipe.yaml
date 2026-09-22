@@ -2,8 +2,8 @@ schema_version: 1
 
 context:
   name: filament
-  version: "1.77.0"
-  build_number: 5
+  version: "1.77.1"
+  build_number: 0
   imgui_version: "1.92.9"
   python: "3.12"
 
@@ -13,7 +13,7 @@ recipe:
 
 source:
   - url: https://github.com/google/filament/archive/refs/tags/v${{ version }}.tar.gz
-    sha256: cda68596471e2446aef3484ed2cf1a6a68d5cd40019c75a23db79ebf20c2d6d2
+    sha256: c55e2f99fd5e8840f132d03f1b019bc820c37d9df6d2c2ce2f3930367b081a45
     patches:
       # Remove when upstream guards the macOS 12-only enum values, or when the
       # conda-forge build moves to a macOS 12+ SDK.
@@ -250,9 +250,9 @@ outputs:
             - if: target_platform == "linux-64"
               then:
                 - libvulkan-loader
-            - if: target_platform == "linux-64" and filament_window_system == "x11"
-              then:
-                - mesa-lavapipe
+                - if: filament_window_system == "x11"
+                  then:
+                    - mesa-lavapipe
             - ninja
             - if: target_platform == "linux-64" and filament_window_system == "x11"
               then:
@@ -294,9 +294,9 @@ outputs:
             - if: target_platform == "linux-64"
               then:
                 - libvulkan-loader
-            - if: target_platform == "linux-64" and filament_window_system == "x11"
-              then:
-                - mesa-lavapipe
+                - if: filament_window_system == "x11"
+                  then:
+                    - mesa-lavapipe
             - ninja
             - if: target_platform == "linux-64" and filament_window_system == "wayland"
               then:
