@@ -197,7 +197,7 @@
       * Returns a canonical copy of the specified pathname by removing
 --- a/libs/image/CMakeLists.txt
 +++ b/libs/image/CMakeLists.txt
-@@ -27,13 +27,17 @@
+@@ -27,7 +27,7 @@
  # ==================================================================================================
  include_directories(${PUBLIC_HDR_DIR})
  
@@ -205,7 +205,8 @@
 +add_library(${TARGET} SHARED ${PUBLIC_HDRS} ${SRCS})
  
  target_link_libraries(${TARGET} PUBLIC math utils)
- 
+ if (WIN32)
+@@ -37,6 +37,10 @@
  target_include_directories(${TARGET} PUBLIC ${PUBLIC_HDR_DIR})
  set_target_properties(${TARGET} PROPERTIES FOLDER Libs)
  
