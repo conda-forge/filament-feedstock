@@ -15,7 +15,11 @@
 #include <utils/Path.h>
 
 #include <array>
+#include <csignal>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <exception>
 #include <memory>
 
 #if defined(FILAGUI_TEST_DOCKING) && !defined(IMGUI_HAS_DOCK)
@@ -36,17 +40,68 @@ struct WaylandWindow {
 };
 #endif
 
+namespace {
+
+// Print each step so a crash that bypasses normal error reporting still shows where it happened.
+const char* gStep = "start";
+
+void step(const char* name) {
+    gStep = name;
+    std::fprintf(stderr, "hello_world: %s\n", name);
+    std::fflush(stderr);
+}
+
+void reportAbort(int) {
+    std::fprintf(stderr, "hello_world: abort() during step '%s'\n", gStep);
+    std::fflush(stderr);
+    std::_Exit(3);
+}
+
+void reportTerminate() {
+    const char* what = "no active exception";
+    if (std::exception_ptr const e = std::current_exception()) {
+        try {
+            std::rethrow_exception(e);
+        } catch (std::exception const& ex) {
+            what = ex.what();
+        } catch (...) {
+            what = "non-standard exception";
+        }
+    }
+    std::fprintf(stderr, "hello_world: std::terminate during step '%s': %s\n", gStep, what);
+    std::fflush(stderr);
+    std::_Exit(3);
+}
+
+#ifdef _WIN32
+void reportInvalidParameter(wchar_t const*, wchar_t const*, wchar_t const*, unsigned, uintptr_t) {
+    std::fprintf(stderr, "hello_world: invalid CRT parameter during step '%s'\n", gStep);
+    std::fflush(stderr);
+    std::_Exit(3);
+}
+#endif
+
+} // namespace
+
 int main() {
     using namespace filament;
     constexpr uint32_t width = 64;
     constexpr uint32_t height = 64;
 
+    std::signal(SIGABRT, reportAbort);
+    std::set_terminate(reportTerminate);
+#ifdef _WIN32
+    _set_invalid_parameter_handler(reportInvalidParameter);
+#endif
+
+    step("lru-cache");
     utils::LruCache<int, int> cache("filament-conda-test-cache", 1);
     cache.put(1, 1, [](int&&) {});
     if (cache.get(1) == nullptr) {
         return 1;
     }
 
+    step("surface-orientation");
     std::array<filament::math::float3, 3> positions = {
             filament::math::float3{0.0f, 0.0f, 0.0f},
             filament::math::float3{1.0f, 0.0f, 0.0f},
@@ -110,6 +165,7 @@ int main() {
     constexpr Engine::Backend backend = Engine::Backend::NOOP;
 #endif
 
+    step("engine-create");
     Engine* engine = Engine::create(backend);
     if (engine == nullptr) {
 #ifdef FILAMENT_TEST_X11
@@ -122,6 +178,7 @@ int main() {
         return 1;
     }
 
+    step("swap-chain");
 #ifdef FILAMENT_TEST_X11
     SwapChain* swapChain = engine->createSwapChain(
             reinterpret_cast<void*>(static_cast<std::uintptr_t>(window)));
@@ -130,6 +187,7 @@ int main() {
 #else
     SwapChain* swapChain = engine->createSwapChain(width, height);
 #endif
+    step("renderer-scene-skybox");
     Renderer* renderer = engine->createRenderer();
     Scene* scene = engine->createScene();
     Skybox* skybox = Skybox::Builder()
@@ -146,6 +204,7 @@ int main() {
     view->setCamera(camera);
     view->setPostProcessingEnabled(false);
 
+    step("first-frame");
     bool renderedFrame = false;
     if (renderer->beginFrame(swapChain)) {
         renderer->render(view);
@@ -162,13 +221,18 @@ int main() {
     std::array<uint8_t, width * height * 4> guiPixels{};
 #endif
     {
+        step("imgui-check-version");
         IMGUI_CHECKVERSION();
+        step("imgui-helper-create");
         filagui::ImGuiHelper gui(engine, guiView, utils::Path());
 #ifdef FILAGUI_TEST_DOCKING
         ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 #endif
+        step("imgui-set-display-size");
         gui.setDisplaySize(width, height);
+        step("imgui-render");
         gui.render(1.0f / 60.0f, [](Engine*, View*) {
+            step("imgui-commands");
 #ifdef FILAGUI_TEST_DOCKING
             ImGui::DockSpaceOverViewport();
 #endif
@@ -180,6 +244,7 @@ int main() {
             ImGui::End();
             ImGui::PopStyleColor();
         });
+        step("gui-frame");
         if (renderer->beginFrame(swapChain)) {
             renderer->render(guiView);
 #if defined(FILAMENT_TEST_X11) || defined(FILAMENT_TEST_WAYLAND)
@@ -191,7 +256,9 @@ int main() {
             renderedGuiFrame = true;
         }
         engine->flushAndWait();
+        step("imgui-helper-destroy");
     }
+    step("teardown");
 
 #if defined(FILAMENT_TEST_X11) || defined(FILAMENT_TEST_WAYLAND)
     bool renderedGuiOutput = false;
@@ -224,5 +291,6 @@ int main() {
     glfwTerminate();
 #endif
 
+    step("done");
     return renderedFrame && renderedGuiFrame && renderedGuiOutput ? 0 : 2;
 }
