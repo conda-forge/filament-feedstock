@@ -110,6 +110,12 @@ int main(int argc, char** argv) {
     }
     engine->flushAndWait();
 
+    // Destroy a scene that still holds an entity. With filament 1.81.0 this crashed in the
+    // Windows DLL build until recipe patch 0010.
+    Scene* populatedScene = engine->createScene();
+    populatedScene->addEntity(mesh.renderable);
+    engine->destroy(populatedScene);
+
     scene->remove(mesh.renderable);
     engine->destroy(view);
     engine->destroyCameraComponent(cameraEntity);
