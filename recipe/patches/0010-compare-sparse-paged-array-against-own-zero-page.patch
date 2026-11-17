@@ -1,0 +1,158 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: conda-forge <conda-forge@users.noreply.github.com>
+Date: Tue, 17 Nov 2026 04:45:00 -0800
+Subject: [PATCH] Compare SparsePagedArray pages against the instance's zero
+ page
+
+SparsePagedArray marks unallocated pages with a header-defined static
+sentinel and tells them apart by address. In a Windows DLL build every
+DLL that includes the header has its own copy of that sentinel, so an
+array constructed in utils.dll and cleared in filament.dll (for example
+when a non-empty Scene is destroyed) frees utils.dll's sentinel and the
+process aborts. Capture the sentinel in each instance and compare
+against that instead.
+---
+ libs/utils/include/utils/SparsePagedArray.h | 50 ++++++++++++---------
+ 1 file changed, 30 insertions(+), 20 deletions(-)
+
+diff --git a/libs/utils/include/utils/SparsePagedArray.h b/libs/utils/include/utils/SparsePagedArray.h
+index 020fb05..f313120 100644
+--- a/libs/utils/include/utils/SparsePagedArray.h
++++ b/libs/utils/include/utils/SparsePagedArray.h
+@@ -71,12 +71,12 @@ public:
+     using PageTraits = std::allocator_traits<PageAllocator>;
+ 
+     SparsePagedArray() noexcept {
+-        mPages.fill(zeroPage());
++        mPages.fill(mZeroPage);
+     }
+ 
+     explicit SparsePagedArray(Allocator const& alloc) noexcept
+             : mAllocator(alloc) {
+-        mPages.fill(zeroPage());
++        mPages.fill(mZeroPage);
+     }
+ 
+     ~SparsePagedArray() noexcept {
+@@ -88,8 +88,9 @@ public:
+ 
+     SparsePagedArray(SparsePagedArray&& rhs) noexcept
+             : mPages(rhs.mPages),
+-              mAllocator(std::move(rhs.mAllocator)) {
+-        rhs.mPages.fill(zeroPage());
++              mAllocator(std::move(rhs.mAllocator)),
++              mZeroPage(rhs.mZeroPage) {
++        rhs.mPages.fill(rhs.mZeroPage);
+     }
+ 
+     SparsePagedArray& operator=(SparsePagedArray&& rhs) noexcept {
+@@ -98,14 +99,12 @@ public:
+             if constexpr (PageTraits::propagate_on_container_move_assignment::value &&
+                     std::is_move_assignable_v<PageAllocator>) {
+                 mAllocator = std::move(rhs.mAllocator);
+-                mPages = rhs.mPages;
+-                rhs.mPages.fill(zeroPage());
++                adoptPages(rhs);
+             } else if (mAllocator == rhs.mAllocator) {
+-                mPages = rhs.mPages;
+-                rhs.mPages.fill(zeroPage());
++                adoptPages(rhs);
+             } else {
+                 for (size_t i = 0; i < DIR_SIZE; ++i) {
+-                    if (rhs.mPages[i] != &sZeroPage) {
++                    if (rhs.mPages[i] != rhs.mZeroPage) {
+                         Page* const page = PageTraits::allocate(mAllocator, 1);
+                         std::copy_n(rhs.mPages[i]->entries, ELEMENTS_PER_PAGE, page->entries);
+                         mPages[i] = page;
+@@ -136,13 +135,13 @@ public:
+     T* find(uint32_t const index) noexcept {
+         assert(index < DOMAIN_SIZE);
+         Page* const page = mPages[index >> FILAMENT_PAGE_SHIFT];
+-        return page != &sZeroPage ? &page->entries[index & ELEMENT_MASK] : nullptr;
++        return page != mZeroPage ? &page->entries[index & ELEMENT_MASK] : nullptr;
+     }
+ 
+     T const* find(uint32_t const index) const noexcept {
+         assert(index < DOMAIN_SIZE);
+         Page const* const page = mPages[index >> FILAMENT_PAGE_SHIFT];
+-        return page != &sZeroPage ? &page->entries[index & ELEMENT_MASK] : nullptr;
++        return page != mZeroPage ? &page->entries[index & ELEMENT_MASK] : nullptr;
+     }
+ 
+     /**
+@@ -152,7 +151,7 @@ public:
+     T& getMutableAssumingAllocated(uint32_t const index) noexcept {
+         assert(index < DOMAIN_SIZE);
+         Page* const page = mPages[index >> FILAMENT_PAGE_SHIFT];
+-        assert(page != &sZeroPage);
++        assert(page != mZeroPage);
+         return page->entries[index & ELEMENT_MASK];
+     }
+ 
+@@ -164,7 +163,7 @@ public:
+         assert(index < DOMAIN_SIZE);
+         uint32_t const dirIdx = index >> FILAMENT_PAGE_SHIFT;
+         Page* page = mPages[dirIdx];
+-        if (UTILS_UNLIKELY(page == &sZeroPage)) {
++        if (UTILS_UNLIKELY(page == mZeroPage)) {
+             page = allocatePage(dirIdx);
+         }
+         return page->entries[index & ELEMENT_MASK];
+@@ -182,9 +181,9 @@ public:
+      */
+     void clear() noexcept {
+         for (Page*& page : mPages) {
+-            if (UTILS_UNLIKELY(page != &sZeroPage)) {
++            if (UTILS_UNLIKELY(page != mZeroPage)) {
+                 PageTraits::deallocate(mAllocator, page, 1);
+-                page = zeroPage();
++                page = mZeroPage;
+             }
+         }
+     }
+@@ -195,7 +194,7 @@ public:
+     size_t allocatedPageCount() const noexcept {
+         size_t count = 0;
+         for (Page const* const page : mPages) {
+-            if (page != &sZeroPage) {
++            if (page != mZeroPage) {
+                 ++count;
+             }
+         }
+@@ -216,6 +215,16 @@ private:
+         return const_cast<Page*>(&sZeroPage);
+     }
+ 
++    // Takes over rhs's pages. rhs may point its unallocated slots at another module's zero page,
++    // so those slots are pointed at ours instead.
++    void adoptPages(SparsePagedArray& rhs) noexcept {
++        for (size_t i = 0; i < DIR_SIZE; ++i) {
++            Page* const page = rhs.mPages[i];
++            mPages[i] = page == rhs.mZeroPage ? mZeroPage : page;
++        }
++        rhs.mPages.fill(rhs.mZeroPage);
++    }
++
+     UTILS_NOINLINE Page* allocatePage(uint32_t const dirIdx) {
+         Page* const page = PageTraits::allocate(mAllocator, 1);
+         std::fill_n(page->entries, ELEMENTS_PER_PAGE, T{});
+@@ -223,14 +232,15 @@ private:
+         return page;
+     }
+ 
+-    // Shared read-only sentinel page for unallocated directory slots. Pointer comparison against
+-    // `&sZeroPage` assumes a single definition within the linkage unit (standard in C++17 within a
+-    // single DSO / static build; do not move-assign instances across Windows DLL boundaries with
+-    // distinct CRT/module images).
++    // Shared read-only sentinel page for unallocated directory slots. In a Windows DLL build every
++    // module that includes this header has its own sZeroPage, so an instance constructed in one DLL
++    // and cleared in another would free the other module's zero page. Each instance therefore
++    // compares against the zero page it captured at construction (mZeroPage).
+     static inline constexpr Page sZeroPage{};
+ 
+     std::array<Page*, DIR_SIZE> mPages;
+     UTILS_NO_UNIQUE_ADDRESS PageAllocator mAllocator;
++    Page* mZeroPage = zeroPage();
+ };
+ 
+ } // namespace utils
